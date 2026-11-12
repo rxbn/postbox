@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     mcp_allowed_hosts: NonEmpty | None = None
     mcp_auth_token: SecretStr | None = None
     mcp_read_only: bool = True
+    mcp_audit_log: bool = False
 
     @field_validator("mail_address")
     @classmethod

@@ -1,4 +1,5 @@
 import asyncio
+import re
 import ssl
 import sys
 
@@ -156,6 +157,72 @@ def test_http_requires_token_and_secret_files(settings_factory, tmp_path, monkey
     assert "secret-file-pass" not in repr(settings)
 
 
+@pytest.mark.parametrize("enabled", [True, False])
+def test_request_audit_metadata_only(settings_factory, fake_imap, caplog, enabled):
+    cfg = settings_factory(
+        mcp_transport="http", mcp_auth_token=SecretStr(TOKEN), mcp_audit_log=enabled
+    )
+    service = MailService(cfg, Mailbox(cfg, factory=lambda *a, **kw: fake_imap))
+    headers = {"Accept": "application/json, text/event-stream"}
+    auth = headers | {"Authorization": f"Bearer {TOKEN}"}
+    private = "private-input\nforged-audit-event"
+    caplog.set_level("INFO", logger="postbox.audit")
+    with TestClient(
+        http_app(cfg, create_server(cfg, service)), base_url="http://localhost"
+    ) as http:
+        assert http.get("/healthz").status_code == 200
+        assert http.get("/private-path").status_code == 404
+        assert http.post("/mcp", headers=headers).status_code == 401
+        initialized = http.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": {"name": private, "version": "1"},
+                },
+            },
+            headers=auth,
+        )
+        auth["MCP-Protocol-Version"] = initialized.json()["result"]["protocolVersion"]
+        for method, params in [
+            ("tools/call", {"name": "list_emails", "arguments": {}}),
+            ("tools/call", {"name": "search_emails", "arguments": {"text": private}}),
+            ("tools/call", {"name": private}),
+            (private, {}),
+        ]:
+            http.post(
+                "/mcp",
+                params={"q": private},
+                json={"jsonrpc": "2.0", "id": private, "method": method, "params": params},
+                headers=auth,
+            )
+
+    messages = [record.getMessage() for record in caplog.records if record.name == "postbox.audit"]
+    if not enabled:
+        assert not messages
+        return
+    assert len(messages) == 13
+    logged = "\n".join(messages)
+    for expected in (
+        "method=GET route=/healthz status=200",
+        "method=GET route=other status=404",
+        "method=POST route=/mcp status=401",
+        "method=tools/call tool=list_emails outcome=ok",
+        "method=tools/call tool=search_emails outcome=error",
+        "method=tools/call tool=unknown outcome=error",
+        "method=other tool=- outcome=error",
+    ):
+        assert expected in logged
+    match = re.search(r"mcp request_id=(\w+) method=tools/call tool=list_emails", logged)
+    assert match and f"http request_id={match[1]} method=POST route=/mcp status=200" in logged
+    for sensitive in (TOKEN, "private-input", "private-path", "forged-audit-event", "Café meeting"):
+        assert sensitive not in logged
+
+
 @pytest.fixture
 async def imap_wire(tmp_path):
     ca = trustme.CA()
@@ -239,6 +306,7 @@ async def test_stdio_mcp_smoke_against_tls_imap(imap_wire):
         "MAIL_CA_FILE": str(cert),
         "MCP_TRANSPORT": "stdio",
         "MCP_READ_ONLY": "true",
+        "MCP_AUDIT_LOG": "true",
     }
     server = StdioServerParameters(command=sys.executable, args=["-m", "postbox"], env=environment)
     async with Client(server, read_timeout_seconds=5) as client:

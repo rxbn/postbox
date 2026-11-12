@@ -22,6 +22,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from . import mime
+from .audit import HttpAudit, McpAudit
 from .config import Settings, load_settings
 from .errors import MailError
 from .imap import Client
@@ -142,6 +143,8 @@ def create_server(cfg: Settings, service: MailService | None = None) -> MCPServe
             "folder-specific; list the destination after a move."
         ),
     )
+    if cfg.mcp_audit_log:
+        mcp.middleware.append(McpAudit(mcp))
     service = service or MailService(cfg)
     box = service.mailbox
 
@@ -384,7 +387,7 @@ def http_app(cfg: Settings, mcp: MCPServer[None]) -> Starlette:
         raise ValueError(
             "MCP_ALLOWED_HOSTS must contain comma-separated hostnames with optional ports."
         )
-    return mcp.streamable_http_app(
+    app = mcp.streamable_http_app(
         host=cfg.mcp_host,
         stateless_http=True,
         json_response=True,
@@ -394,6 +397,9 @@ def http_app(cfg: Settings, mcp: MCPServer[None]) -> Starlette:
             allowed_origins=[],
         ),
     )
+    if cfg.mcp_audit_log:
+        app.add_middleware(HttpAudit)
+    return app
 
 
 def main() -> None:

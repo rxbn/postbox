@@ -42,6 +42,7 @@ For a typical Mailcow setup, point both hosts at the TLS certificate hostname (f
 | `MCP_TRANSPORT`, `MCP_HOST`, `MCP_PORT` | `http`, `127.0.0.1`, `8000`; Compose binds to all interfaces inside its container and publishes nothing by default. |
 | `MCP_AUTH_TOKEN`, `MCP_ALLOWED_HOSTS` | HTTP requires a random token (32–256 characters). Loopback hosts are always allowed. Compose additionally allows `postbox:8000`. For proxies or a private DNS name, provide a comma-separated list of exact Host values with ports if present. |
 | `MCP_READ_ONLY`, `ALLOW_PERMANENT_DELETE` | `true`, `false`. Read-only mode hides and disables every write. |
+| `MCP_AUDIT_LOG` | `false`. Set to `true` to log HTTP status and MCP tool outcomes with timing, without logging mail data or tokens. |
 | `SENT_FOLDER`, `DRAFTS_FOLDER`, `TRASH_FOLDER`, `ARCHIVE_FOLDER` | Exact overrides. Otherwise Postbox prefers IMAP special-use attributes, then common English names. |
 | `APPEND_SENT` | `true`. With this enabled, a usable Sent folder must be found before submission. |
 | `MAIL_TIMEOUT`, `MAIL_CONCURRENCY` | 10 seconds per mail socket operation and four active tool calls by default. Writes are serialized within one Postbox process. |
