@@ -6,7 +6,7 @@ requires-python = ">=3.13"
 dependencies = [
     "aiosmtplib>=5,<6",
     "anyio>=4.10,<5",
-    "imapclient>=3,<4",
+    "imapclient>=4,<5",
     "mcp>=2,<3",
     "pydantic[email]>=2.12,<3",
     "pydantic-settings>=2.10,<3",
