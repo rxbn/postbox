@@ -1,0 +1,57 @@
+[project]
+name = "postbox-mcp"
+version = "0.1.0"
+description = "Private, single-mailbox MCP server for IMAP and SMTP"
+requires-python = ">=3.13"
+dependencies = [
+    "aiosmtplib>=5,<6",
+    "anyio>=4.10,<5",
+    "imapclient>=3,<4",
+    "mcp>=2,<3",
+    "pydantic[email]>=2.12,<3",
+    "pydantic-settings>=2.10,<3",
+    "starlette>=0.49,<2",
+    "uvicorn>=0.35,<1",
+]
+
+[project.scripts]
+postbox = "postbox.server:main"
+
+[dependency-groups]
+dev = [
+    "httpx",
+    "mypy",
+    "pip-audit",
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "trustme",
+]
+
+[build-system]
+requires = ["uv_build>=0.9,<1"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "postbox"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["imapclient", "imapclient.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]

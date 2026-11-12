@@ -1,0 +1,23 @@
+services:
+  postbox:
+    build: .
+    env_file: .env
+    environment:
+      MCP_TRANSPORT: http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8000"
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-postbox:8000}
+    expose:
+      - "8000"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    stop_grace_period: 45s
+    networks: [mail]
+
+networks:
+  # Private service network, with outbound access to the configured mail servers.
+  mail:
+    driver: bridge
